@@ -1,4 +1,4 @@
-// src/models/Order.js
+// src/models/Order.js - VERSIÓN ACTUALIZADA
 import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
@@ -42,6 +42,21 @@ const OrderSchema = new mongoose.Schema({
     enum: ['cash', 'card'],
     default: 'cash',
   },
+  // 🆕 NUEVOS CAMPOS PARA STRIPE
+  stripeSessionId: {
+    type: String,
+    default: null,
+  },
+  stripePaymentIntentId: {
+    type: String,
+    default: null,
+  },
+  stripePaymentStatus: {
+    type: String,
+    enum: ['pending', 'paid', 'failed', 'refunded'],
+    default: 'pending',
+  },
+  // FIN NUEVOS CAMPOS
   rating: {
     type: Number,
     min: 1,

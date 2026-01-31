@@ -296,7 +296,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                         value={manualLat}
                         onChange={(e) => setManualLat(e.target.value)}
                         placeholder="10.2541399"
-                        className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm"
+                        className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm text-gray-900"
                       />
                     </div>
                     <div>
@@ -308,7 +308,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                         value={manualLng}
                         onChange={(e) => setManualLng(e.target.value)}
                         placeholder="-63.9113296"
-                        className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm"
+                        className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm text-gray-900"
                       />
                     </div>
                   </div>

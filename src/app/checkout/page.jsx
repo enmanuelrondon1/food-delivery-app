@@ -1,15 +1,17 @@
 // src/app/checkout/page.jsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import LocationPicker from "@/components/LocationPicker";
 
-export default function CheckoutPage() {
+// Componente interno que usa useSearchParams
+function CheckoutContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [cart, setCart] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
@@ -27,13 +29,20 @@ export default function CheckoutPage() {
     } else {
       router.push("/");
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login");
     }
-  }, [status]);
+  }, [status, router]);
+
+  // Mostrar mensaje si el usuario canceló el pago
+  useEffect(() => {
+    if (searchParams.get('canceled')) {
+      setError('Pago cancelado. Puedes intentar de nuevo o pagar en efectivo.');
+    }
+  }, [searchParams]);
 
   const handleSubmitOrder = async (e) => {
     e.preventDefault();
@@ -71,6 +80,42 @@ export default function CheckoutPage() {
         status: "pending",
       };
 
+      // Si el método de pago es con tarjeta, usar Stripe
+      if (paymentMethod === 'card') {
+        // Crear sesión de checkout de Stripe
+        const stripeRes = await fetch('/api/stripe/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderData: {
+              ...orderData,
+              items: cart.items.map((item) => ({
+                name: item.name,
+                quantity: item.quantity,
+                price: item.price,
+              })),
+            },
+          }),
+        });
+
+        const stripeData = await stripeRes.json();
+
+        if (!stripeRes.ok) {
+          setError(stripeData.error || 'Error al procesar el pago');
+          return;
+        }
+
+        // Guardar datos temporales para recuperar después del pago
+        sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+        
+        // Redirigir a Stripe Checkout
+        window.location.href = stripeData.url;
+        return;
+      }
+
+      // Si es efectivo, crear la orden directamente
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: {
@@ -163,56 +208,123 @@ export default function CheckoutPage() {
                   Método de pago
                 </label>
                 <div className="space-y-2">
-                  <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                  {/* Efectivo */}
+                  <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition"
+                    style={{
+                      borderColor: paymentMethod === 'cash' ? '#f97316' : '#d1d5db',
+                      backgroundColor: paymentMethod === 'cash' ? '#fff7ed' : 'white'
+                    }}
+                  >
                     <input
                       type="radio"
                       name="payment"
                       value="cash"
                       checked={paymentMethod === "cash"}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="mr-3"
+                      className="mr-3 w-4 h-4"
                     />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Efectivo al entregar
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Paga cuando recibas tu pedido
-                      </p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">💵</span>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            Efectivo al entregar
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Paga cuando recibas tu pedido
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </label>
 
-                  <label className="flex items-center p-4 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                  {/* Tarjeta con Stripe */}
+                  <label className="flex items-center p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition"
+                    style={{
+                      borderColor: paymentMethod === 'card' ? '#f97316' : '#d1d5db',
+                      backgroundColor: paymentMethod === 'card' ? '#fff7ed' : 'white'
+                    }}
+                  >
                     <input
                       type="radio"
                       name="payment"
                       value="card"
                       checked={paymentMethod === "card"}
                       onChange={(e) => setPaymentMethod(e.target.value)}
-                      className="mr-3"
+                      className="mr-3 w-4 h-4"
                     />
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        Tarjeta (Simulado)
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        Pago con tarjeta de crédito/débito
-                      </p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-2xl">💳</span>
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            Tarjeta de Crédito/Débito
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            Pago seguro con Stripe
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="ml-2">
+                      <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" 
+                        alt="Stripe" 
+                        className="h-6"
+                      />
                     </div>
                   </label>
                 </div>
+
+                {/* Información de seguridad */}
+                {paymentMethod === 'card' && (
+                  <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex gap-2">
+                      <span className="text-blue-600">🔒</span>
+                      <div className="text-xs text-blue-800">
+                        <p className="font-semibold mb-1">Pago 100% seguro</p>
+                        <p>Tus datos de tarjeta están protegidos por Stripe. Nunca almacenamos tu información de pago.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading || !deliveryAddress}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {loading ? "Procesando..." : "Confirmar Pedido"}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    {paymentMethod === 'card' ? '💳 Pagar con Tarjeta' : '✓ Confirmar Pedido'}
+                    <span className="font-bold">${getTotal()}</span>
+                  </>
+                )}
               </button>
+
+              {/* Tarjetas de prueba info */}
+              {paymentMethod === 'card' && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs font-semibold text-yellow-800 mb-2">
+                    💡 Tarjetas de prueba (modo desarrollo):
+                  </p>
+                  <ul className="text-xs text-yellow-700 space-y-1">
+                    <li>• <span className="font-mono">4242 4242 4242 4242</span> - Pago exitoso</li>
+                    <li>• <span className="font-mono">4000 0000 0000 0002</span> - Tarjeta declinada</li>
+                    <li>• CVV: cualquier 3 dígitos | Fecha: cualquier futura</li>
+                  </ul>
+                </div>
+              )}
             </form>
           </div>
 
+          {/* Resumen del Pedido */}
           <div className="bg-white rounded-lg shadow-md p-6 h-fit">
             <h2 className="text-2xl font-semibold text-gray-900 mb-4">
               Resumen del Pedido
@@ -258,9 +370,40 @@ export default function CheckoutPage() {
                 <span className="text-orange-500">${getTotal()}</span>
               </div>
             </div>
+
+            {/* Trust badges */}
+            <div className="mt-6 pt-6 border-t">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl mb-1">🔒</span>
+                  <p className="text-xs text-gray-600">Pago Seguro</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl mb-1">🚚</span>
+                  <p className="text-xs text-gray-600">Envío Rápido</p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-2xl mb-1">✅</span>
+                  <p className="text-xs text-gray-600">Garantizado</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+// Componente principal con Suspense
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-500"></div>
+      </div>
+    }>
+      <CheckoutContent />
+    </Suspense>
   );
 }
