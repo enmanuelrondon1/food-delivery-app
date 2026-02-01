@@ -14,13 +14,27 @@ const UserSchema = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: [true, 'Por favor proporciona una contraseña'],
+    required: function() {
+      // Password solo es requerido si NO es login con Google
+      return this.provider !== 'google';
+    },
   },
   role: {
     type: String,
     enum: ['customer', 'restaurant'],
     default: 'customer',
   },
+  // 🆕 NUEVOS CAMPOS PARA GOOGLE OAUTH
+  provider: {
+    type: String,
+    enum: ['credentials', 'google'],
+    default: 'credentials',
+  },
+  googleId: {
+    type: String,
+    default: null,
+  },
+  // FIN NUEVOS CAMPOS
   phone: {
     type: String,
   },
