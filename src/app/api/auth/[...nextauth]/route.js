@@ -12,6 +12,13 @@ export const authOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     
     // Credentials Provider (login con email/password)
@@ -112,6 +119,10 @@ export const authOptions = {
     strategy: 'jwt',
   },
   secret: process.env.NEXTAUTH_SECRET,
+  // CRÍTICO PARA VERCEL: Permite que NextAuth confíe en el host de Vercel
+  trustHost: true,
+  // Usar cookies seguras solo en producción
+  useSecureCookies: process.env.NODE_ENV === 'production',
 };
 
 const handler = NextAuth(authOptions);
