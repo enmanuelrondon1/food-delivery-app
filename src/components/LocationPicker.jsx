@@ -98,6 +98,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
       );
       const data = await response.json();
       console.log('🗺️ Geocoding inverso:', data.display_name);
+      // ✅ SOLO actualiza la dirección, NO las coordenadas
       setAddress(data.display_name || 'Ubicación seleccionada');
     } catch (error) {
       console.error('Error en geocoding:', error);
@@ -107,6 +108,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
 
   const handleLocationChange = (location) => {
     console.log('📍 Ubicación cambiada desde el mapa:', location);
+    // ✅ Actualiza la ubicación seleccionada sin sobrescribir
     setSelectedLocation(location);
     reverseGeocode(location);
   };
@@ -135,13 +137,11 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
     setIsOpen(false);
   };
 
-  // Pre-llenar coordenadas desde Google Maps si el usuario las tiene
   useEffect(() => {
     if (isOpen && !selectedLocation) {
-      // Sugerencia de coordenadas para Anaco, Venezuela (cerca de donde parece estar el usuario)
       const suggestedLocation = {
-        lat: 10.2541399,
-        lng: -63.9113296
+        lat: 9.433411335833638,
+        lng: -64.4748330379938
       };
       console.log('💡 Sugerencia de ubicación inicial:', suggestedLocation);
     }
@@ -205,7 +205,6 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 </button>
               </div>
 
-              {/* Advertencia sobre geolocalización en PC */}
               <div className="mb-4 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                 <div className="flex gap-2">
                   <span className="text-yellow-600 text-xl">⚠️</span>
@@ -220,7 +219,6 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 </div>
               </div>
 
-              {/* Botones de ubicación */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
                 <button
                   type="button"
@@ -275,7 +273,6 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 </button>
               </div>
 
-              {/* Input manual de coordenadas */}
               {showManualInput && (
                 <div className="mb-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <p className="text-sm font-medium text-purple-900 mb-3">
@@ -295,7 +292,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                         type="text"
                         value={manualLat}
                         onChange={(e) => setManualLat(e.target.value)}
-                        placeholder="10.2541399"
+                        placeholder="9.433411"
                         className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm text-gray-900"
                       />
                     </div>
@@ -307,7 +304,7 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                         type="text"
                         value={manualLng}
                         onChange={(e) => setManualLng(e.target.value)}
-                        placeholder="-63.9113296"
+                        placeholder="-64.474833"
                         className="w-full px-3 py-2 border border-purple-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none text-sm text-gray-900"
                       />
                     </div>
@@ -322,15 +319,13 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 </div>
               )}
 
-              {/* Mapa */}
               <div className="mb-4">
                 <LocationPickerMap
-                  center={selectedLocation || { lat: 10.2541399, lng: -63.9113296 }}
+                  center={selectedLocation || { lat: 9.433411335833638, lng: -64.4748330379938 }}
                   onLocationChange={handleLocationChange}
                 />
               </div>
 
-              {/* Dirección seleccionada */}
               {address && (
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">
@@ -345,7 +340,6 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 </div>
               )}
 
-              {/* Campo de detalles adicionales */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Detalles adicionales (opcional)
@@ -359,7 +353,6 @@ export default function LocationPicker({ onLocationSelect, initialLocation }) {
                 />
               </div>
 
-              {/* Botones */}
               <div className="flex gap-3">
                 <button
                   type="button"

@@ -339,6 +339,22 @@ const sampleRestaurants = [
     deliveryTime: '40-50 min',
     isOpen: true,
   },
+  {
+  _id: new mongoose.Types.ObjectId('507f1f77bcf86cd799439063'), // ⚠️ Cambia el último número
+  ownerId: new mongoose.Types.ObjectId(),
+  name: 'Nombre de tu Restaurante',
+  description: 'Descripción breve',
+  image: 'https://images.unsplash.com/photo-XXXXXXX?w=800',
+  location: {
+    address: 'Dirección en Anaco',
+    lat: 9.433379584590748, // Coordenadas de Anaco
+    lng: -64.47508516562338,
+  },
+  cuisine: 'Tipo de Cocina', // Ej: Italiana, Mexicana, etc.
+  rating: 4.5,
+  deliveryTime: '30-40 min',
+  isOpen: true,
+},
 ];
 
 // 🍕 MENÚS COMPLETOS PARA CADA RESTAURANTE
@@ -945,6 +961,15 @@ const sampleMenuItems = [
     category: 'Carnes',
     available: true,
   },
+  {
+  restaurantId: new mongoose.Types.ObjectId('507f1f77bcf86cd799439063'), // ⚠️ Mismo ID del restaurante
+  name: 'Nombre del Plato',
+  description: 'Descripción del plato',
+  price: 12.99,
+  image: 'https://images.unsplash.com/photo-XXXXXXX?w=800',
+  category: 'Categoría', // Ej: Pizzas, Hamburguesas, etc.
+  available: true,
+},
 ];
 
 async function seed() {

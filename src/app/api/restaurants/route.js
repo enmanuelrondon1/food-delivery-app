@@ -1,5 +1,7 @@
 // src/app/api/restaurants/route.js
 import { NextResponse } from "next/server";
+import { getServerSession } from 'next-auth';
+import { authOptions } from '../auth/[...nextauth]/route';
 import dbConnect from "@/lib/mongodb";
 import Restaurant from "@/models/Restaurant";
 
@@ -56,13 +58,37 @@ export async function GET(request) {
     );
   }
 }
+
 // POST - Crear restaurante (solo para usuarios tipo restaurant)
 export async function POST(request) {
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session || session.user.role !== 'restaurant') {
+      return NextResponse.json(
+        { error: 'No autorizado. Solo usuarios tipo restaurante pueden crear restaurantes.' },
+        { status: 401 }
+      );
+    }
+
     await dbConnect();
+
+    // Verificar si el usuario ya tiene un restaurante
+    const existingRestaurant = await Restaurant.findOne({ ownerId: session.user.id });
+    if (existingRestaurant) {
+      return NextResponse.json(
+        { error: 'Ya tienes un restaurante registrado. Usa la opción de editar.' },
+        { status: 400 }
+      );
+    }
+
     const data = await request.json();
 
-    const restaurant = await Restaurant.create(data);
+    // Agregar el ownerId del usuario logueado
+    const restaurant = await Restaurant.create({
+      ...data,
+      ownerId: session.user.id,
+    });
 
     return NextResponse.json(restaurant, { status: 201 });
   } catch (error) {

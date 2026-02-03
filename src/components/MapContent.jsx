@@ -139,7 +139,7 @@ export default function MapContent({ restaurants, userLocation }) {
       <MapUpdater center={userLocation} />
       
       {/* Panel de debug */}
-      <DebugInfo userLocation={userLocation} restaurants={restaurants} />
+      {/* <DebugInfo userLocation={userLocation} restaurants={restaurants} /> */}
 
       {/* Marcador de usuario - GRANDE Y VISIBLE */}
       <Marker 

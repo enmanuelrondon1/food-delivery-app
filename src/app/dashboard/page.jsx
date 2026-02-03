@@ -5,6 +5,8 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
+import RestaurantForm from '@/components/RestaurantForm';
+import MenuManagement from '@/components/MenuManagement';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -13,6 +15,7 @@ export default function DashboardPage() {
   const [restaurant, setRestaurant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('orders');
+  const [showRestaurantForm, setShowRestaurantForm] = useState(false);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -29,20 +32,20 @@ export default function DashboardPage() {
     }
   }, [session, status]);
 
-  // Auto-refresh cada 10 segundos
+  // Auto-refresh cada 30 segundos solo para pedidos
   useEffect(() => {
-    const interval = setInterval(() => {
-      fetchDashboardData();
-    }, 10000);
+    if (activeTab === 'orders') {
+      const interval = setInterval(() => {
+        fetchOrders();
+      }, 30000);
 
-    return () => clearInterval(interval);
-  }, []);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab]);
 
   const fetchDashboardData = async () => {
     try {
-      const resOrders = await fetch('/api/orders/restaurant');
-      const ordersData = await resOrders.json();
-      setOrders(ordersData);
+      await Promise.all([fetchRestaurant(), fetchOrders()]);
     } catch (error) {
       console.error('Error obteniendo datos:', error);
     } finally {
@@ -50,16 +53,39 @@ export default function DashboardPage() {
     }
   };
 
+  const fetchRestaurant = async () => {
+    try {
+      const res = await fetch('/api/restaurants/my-restaurant');
+      if (res.ok) {
+        const data = await res.json();
+        setRestaurant(data);
+      } else if (res.status === 404) {
+        // No tiene restaurante aún
+        setRestaurant(null);
+      }
+    } catch (error) {
+      console.error('Error obteniendo restaurante:', error);
+    }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const res = await fetch('/api/orders/restaurant');
+      const data = await res.json();
+      setOrders(data);
+    } catch (error) {
+      console.error('Error obteniendo pedidos:', error);
+    }
+  };
+
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
-      // Actualizar optimísticamente en la UI primero
       setOrders((prevOrders) =>
         prevOrders.map((order) =>
           order._id === orderId ? { ...order, status: newStatus } : order
         )
       );
 
-      // Hacer la petición al servidor
       const res = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: {
@@ -69,16 +95,20 @@ export default function DashboardPage() {
       });
 
       if (!res.ok) {
-        // Si falla, revertir y refrescar
         alert('Error al actualizar el estado del pedido');
-        fetchDashboardData();
+        fetchOrders();
       }
     } catch (error) {
       console.error('Error actualizando pedido:', error);
       alert('Error de conexión');
-      // Refrescar para sincronizar
-      fetchDashboardData();
+      fetchOrders();
     }
+  };
+
+  const handleRestaurantSuccess = (data) => {
+    setRestaurant(data);
+    setShowRestaurantForm(false);
+    alert('Restaurante guardado exitosamente');
   };
 
   const getStatusColor = (status) => {
@@ -109,18 +139,122 @@ export default function DashboardPage() {
     );
   }
 
+  // Si no tiene restaurante, mostrar formulario de creación
+  if (!restaurant && !showRestaurantForm) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+            <div className="mb-6">
+              <div className="inline-block p-4 bg-orange-100 rounded-full mb-4">
+                <svg
+                  className="w-16 h-16 text-orange-500"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                  />
+                </svg>
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                ¡Bienvenido!
+              </h1>
+              <p className="text-gray-600">
+                Para comenzar, registra tu restaurante en nuestra plataforma
+              </p>
+            </div>
+            <button
+              onClick={() => setShowRestaurantForm(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold transition text-lg"
+            >
+              Registrar Mi Restaurante
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Formulario de creación/edición de restaurante
+  if (showRestaurantForm || !restaurant) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="mb-6 flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-gray-900">
+              {restaurant ? 'Editar Restaurante' : 'Registrar Restaurante'}
+            </h1>
+            {restaurant && (
+              <button
+                onClick={() => setShowRestaurantForm(false)}
+                className="text-gray-600 hover:text-gray-900 font-semibold"
+              >
+                ← Volver al Dashboard
+              </button>
+            )}
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-8">
+            <RestaurantForm
+              restaurant={restaurant}
+              onSuccess={handleRestaurantSuccess}
+            />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Dashboard del Restaurante
-          </h1>
-          <p className="text-gray-600">
-            Gestiona tus pedidos y menú desde aquí
-          </p>
+        {/* Header con info del restaurante */}
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-6">
+              {restaurant.image && (
+                <img
+                  src={restaurant.image}
+                  alt={restaurant.name}
+                  className="w-24 h-24 object-cover rounded-lg"
+                />
+              )}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-1">
+                  {restaurant.name}
+                </h1>
+                <p className="text-gray-600 mb-2">{restaurant.description}</p>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-gray-500">
+                    📍 {restaurant.location.address}
+                  </span>
+                  <span
+                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      restaurant.isOpen
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}
+                  >
+                    {restaurant.isOpen ? 'Abierto' : 'Cerrado'}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowRestaurantForm(true)}
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold transition"
+            >
+              Editar Restaurante
+            </button>
+          </div>
         </div>
 
         {/* Estadísticas rápidas */}
@@ -163,7 +297,7 @@ export default function DashboardPage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Pedidos ({orders.length})
+                📦 Pedidos ({orders.length})
               </button>
               <button
                 onClick={() => setActiveTab('menu')}
@@ -173,7 +307,7 @@ export default function DashboardPage() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Menú
+                🍽️ Menú
               </button>
             </div>
           </div>
@@ -214,7 +348,6 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      {/* Items del pedido */}
                       <div className="mb-4 space-y-2">
                         {order.items.map((item, index) => (
                           <div
@@ -231,7 +364,6 @@ export default function DashboardPage() {
                         ))}
                       </div>
 
-                      {/* Dirección */}
                       <div className="mb-4 p-3 bg-gray-50 rounded">
                         <p className="text-xs text-gray-600 mb-1">
                           Dirección de entrega:
@@ -241,7 +373,6 @@ export default function DashboardPage() {
                         </p>
                       </div>
 
-                      {/* Acciones */}
                       <div className="flex gap-2">
                         {order.status === 'pending' && (
                           <button
@@ -290,15 +421,7 @@ export default function DashboardPage() {
                 )}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <p className="text-gray-600 mb-4">
-                  Gestión de menú próximamente
-                </p>
-                <p className="text-sm text-gray-500">
-                  Por ahora puedes usar el script seed.js para agregar items al
-                  menú
-                </p>
-              </div>
+              <MenuManagement restaurantId={restaurant._id} />
             )}
           </div>
         </div>
